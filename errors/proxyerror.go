@@ -5,6 +5,7 @@ const (
 	AuthFailed       = 403
 	EncryptionFailed = 500
 	DecryptionFailed = 500
+	BadRequest       = 400
 )
 
 type ProxyError struct {
