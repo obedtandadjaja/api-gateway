@@ -6,23 +6,41 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/obedtandadjaja/api-gateway/errors"
 	"github.com/obedtandadjaja/api-gateway/helper"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/julienschmidt/httprouter"
 )
 
+const (
+	// list of services - sorted by name
+	AUTH_SERVICE    = "auth"
+	BACKEND_SERVICE = "backend-api"
+
+	// list of port numbers - sorted by port number
+	BACKEND_SERVICE_PORT = 4000
+	AUTH_SERVICE_PORT    = 8080
+)
+
 var Environment string
 var AppHost string
 var AppPort string
 var AppUrl string
+
 var ServiceToDnsResolver = map[string]int{
-	"auth":        8080,
-	"backend-api": 4000,
+	AUTH_SERVICE:    AUTH_SERVICE_PORT,
+	BACKEND_SERVICE: BACKEND_SERVICE_PORT,
+}
+var pathsResolver = map[string]PathResolver{
+	"/auth/verify": PathResolver{AUTH_SERVICE, "/verify", "POST"},
+}
+
+type PathResolver struct {
+	ServiceName string
+	Path        string
+	Method      string
 }
 
 func init() {
@@ -39,77 +57,41 @@ func main() {
 
 	router := httprouter.New()
 
-	// figure out a better way to do this
-	router.HandlerFunc("GET", "/api/*path", handleRequestAndRedirect)
-	router.HandlerFunc("POST", "/api/*path", handleRequestAndRedirect)
-	router.HandlerFunc("PUT", "/api/*path", handleRequestAndRedirect)
-	router.HandlerFunc("DELETE", "/api/*path", handleRequestAndRedirect)
-	router.HandlerFunc("OPTIONS", "/api/*path", handleRequestAndRedirect)
+	for path, resolver := range pathsResolver {
+		baseUrlString := fmt.Sprintf("http://%s:%v", AppHost, ServiceToDnsResolver[resolver.ServiceName])
+		baseUrl, err := url.Parse(baseUrlString)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse url: %s", baseUrlString))
+		}
+
+		reverseProxy := httputil.NewSingleHostReverseProxy(baseUrl)
+		reverseProxy.Director = func(r *http.Request) {
+			r.Header.Add("X-Forwarded-Host", r.Host)
+			r.Header.Add("X-Origin-Host", AppUrl)
+
+			r.URL.Host = baseUrl.Host
+			r.URL.Scheme = baseUrl.Scheme
+			r.URL.Path = resolver.Path
+		}
+
+		router.Handle(resolver.Method, path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+			start := time.Now()
+
+			trackId, _ := helper.GenerateRandomString(12)
+			r.Header.Set("X-Track-ID", trackId)
+
+			reverseProxy.ServeHTTP(w, r)
+
+			logrus.WithFields(logrus.Fields{
+				"TrackId":    trackId,
+				"RemoteAddr": r.RemoteAddr,
+				"UserAgent":  r.UserAgent(),
+				"Method":     r.Method,
+				"Duration":   time.Now().Sub(start),
+			}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s", AppUrl, path, AppHost, ServiceToDnsResolver[resolver.ServiceName], resolver.Path))
+		})
+	}
 
 	logrus.Info("App running on port " + AppUrl)
 	logrus.Fatal(http.ListenAndServe(AppUrl, router))
-}
-
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	start := time.Now()
-
-	trackId, _ := helper.GenerateRandomString(12)
-	logger := logrus.WithFields(logrus.Fields{
-		"originUrl":  req.URL,
-		"trackId":    trackId,
-		"remoteAddr": req.RemoteAddr,
-		"UserAgent":  req.UserAgent(),
-		"Method":     req.Method,
-	})
-
-	resolvedUrl, error := getProxyUrl(req, logger)
-	if error != nil {
-		http.Error(res, error.Error(), error.(errors.ProxyError).Code)
-	}
-
-	serveReverseProxy(resolvedUrl, res, req, logger, trackId)
-	logRequestPerformance(req, logger, start)
-}
-
-func getProxyUrl(req *http.Request, logger *logrus.Entry) (*url.URL, error) {
-	originalPath := req.URL.Path
-	slashIndex := strings.Index(originalPath[5:], "/")
-	if slashIndex == -1 {
-		return req.URL, errors.ProxyError{errors.BadRequest, "Bad request"}
-	}
-
-	serviceName := originalPath[5 : slashIndex+5]
-	if targetPort, ok := ServiceToDnsResolver[serviceName]; ok {
-		colonIndex := strings.Index(req.Host, ":")
-		req.URL.Host = fmt.Sprintf("%v:%v", req.Host[:colonIndex], targetPort)
-		req.URL.Path = originalPath[len(serviceName)+6:]
-
-		return req.URL, nil
-	}
-
-	return req.URL, errors.ProxyError{errors.ServiceNotFound, "Service not found"}
-}
-
-func logRequestPerformance(req *http.Request, logger *logrus.Entry, start time.Time) {
-	duration := time.Now().Sub(start)
-
-	logger.Info(fmt.Sprintf("Proxy duration %v", duration))
-}
-
-func serveReverseProxy(resolvedUrl *url.URL, res http.ResponseWriter, req *http.Request, logger *logrus.Entry, trackId string) {
-	// create the reverse proxy
-	proxy := httputil.NewSingleHostReverseProxy(resolvedUrl)
-
-	// make the new request scheme to http
-	req.URL = resolvedUrl
-	req.URL.Scheme = "http"
-
-	req.Header.Set("X-Forwarded-Host", req.Host)
-	req.Header.Set("X-Origin-Host", AppUrl)
-	req.Header.Set("X-Track-ID", trackId)
-
-	logger.Info(req)
-
-	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	proxy.ServeHTTP(res, req)
 }
