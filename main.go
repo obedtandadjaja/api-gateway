@@ -88,7 +88,8 @@ func main() {
 				"UserAgent":  r.UserAgent(),
 				"Method":     r.Method,
 				"Duration":   time.Now().Sub(start),
-			}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s", AppUrl, path, AppHost, ServiceToDnsResolver[resolver.ServiceName], resolver.Path))
+			}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s",
+				AppUrl, path, AppHost, ServiceToDnsResolver[resolver.ServiceName], resolver.Path))
 		})
 	}
 
