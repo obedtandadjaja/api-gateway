@@ -52,8 +52,6 @@ var PathsResolver = []PathResolver{
 	PathResolver{"/cari-rumah-backend/google/placeGeometry", CARI_RUMAH_BACKEND_SERVICE, "/google/placeGeometry", "GET", false},
 }
 
-var AuthWhitelisted = []string{}
-
 type PathResolver struct {
 	ProxyPath       string
 	ServiceName     string
