@@ -1,3 +1,2 @@
 features:
-- performance logging
 - whitelisting
