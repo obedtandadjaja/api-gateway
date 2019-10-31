@@ -33,19 +33,33 @@ var AppHost string
 var AppPort string
 var AppUrl string
 
+// sorted alphabetically by name
 var ServiceToDnsResolver = map[string]int{
 	AUTH_SERVICE:               AUTH_SERVICE_PORT,
 	CARI_RUMAH_BACKEND_SERVICE: CARI_RUMAH_BACKEND_SERVICE_PORT,
 }
-var pathsResolver = map[string]PathResolver{
-	"/auth/verify":                PathResolver{AUTH_SERVICE, "/verify", "POST"},
-	"/cari-rumah-backend/graphql": PathResolver{CARI_RUMAH_BACKEND_SERVICE, "/graphql", "POST"},
+
+// sorted by proxy path
+var PathsResolver = []PathResolver{
+	PathResolver{"/auth/credentials", AUTH_SERVICE, "/credentials", "POST", true},
+	PathResolver{"/auth/credentials/initiate_password_reset", AUTH_SERVICE, "/credentials/initiate_password_reset", "POST", true},
+	PathResolver{"/auth/credentials/reset_password", AUTH_SERVICE, "/credentials/reset_password", "POST", true},
+	PathResolver{"/auth/login", AUTH_SERVICE, "/login", "POST", true},
+	PathResolver{"/auth/token", AUTH_SERVICE, "/token", "POST", true},
+	PathResolver{"/auth/verify", AUTH_SERVICE, "/verify", "POST", true},
+	PathResolver{"/cari-rumah-backend/graphql", CARI_RUMAH_BACKEND_SERVICE, "/graphql", "POST", false},
+	PathResolver{"/cari-rumah-backend/google/autocomplete", CARI_RUMAH_BACKEND_SERVICE, "/google/autocomplete", "GET", false},
+	PathResolver{"/cari-rumah-backend/google/placeGeometry", CARI_RUMAH_BACKEND_SERVICE, "/google/placeGeometry", "GET", false},
 }
 
+var AuthWhitelisted = []string{}
+
 type PathResolver struct {
-	ServiceName string
-	Path        string
-	Method      string
+	ProxyPath       string
+	ServiceName     string
+	ActualPath      string
+	Method          string
+	AuthWhitelisted bool
 }
 
 func init() {
@@ -62,7 +76,7 @@ func main() {
 
 	router := httprouter.New()
 
-	for path, resolver := range pathsResolver {
+	for _, resolver := range PathsResolver {
 		baseUrlString := fmt.Sprintf("http://%s:%v", AppHost, ServiceToDnsResolver[resolver.ServiceName])
 		baseUrl, err := url.Parse(baseUrlString)
 		if err != nil {
@@ -76,10 +90,10 @@ func main() {
 
 			r.URL.Host = baseUrl.Host
 			r.URL.Scheme = baseUrl.Scheme
-			r.URL.Path = resolver.Path
+			r.URL.Path = resolver.ActualPath
 		}
 
-		router.Handle(resolver.Method, path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		router.Handle(resolver.Method, resolver.ProxyPath, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 			start := time.Now()
 
 			trackId, _ := helper.GenerateRandomString(12)
@@ -88,17 +102,21 @@ func main() {
 			})
 
 			// authentication flow
-			verified, err := authVerifyToken(r, logger)
-			if err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			} else if !verified {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
+			if !resolver.AuthWhitelisted {
+				verified, err := authVerifyToken(r, logger)
+				if err != nil {
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				} else if !verified {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
 			}
 
-			// setting tracking
-			r.Header.Set("X-Track-ID", trackId)
+			// setting tracking if not set by client already
+			if r.Header.Get("X-Track-ID") == "" {
+				r.Header.Set("X-Track-ID", trackId)
+			}
 
 			reverseProxy.ServeHTTP(w, r)
 
@@ -108,7 +126,7 @@ func main() {
 				"Method":     r.Method,
 				"Duration":   time.Now().Sub(start),
 			}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s",
-				AppUrl, path, AppHost, ServiceToDnsResolver[resolver.ServiceName], resolver.Path))
+				AppUrl, resolver.ProxyPath, AppHost, ServiceToDnsResolver[resolver.ServiceName], resolver.ActualPath))
 		})
 	}
 
