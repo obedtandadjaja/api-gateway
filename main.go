@@ -15,8 +15,8 @@ import (
 	"github.com/obedtandadjaja/api-gateway/api"
 	"github.com/obedtandadjaja/api-gateway/helper"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/julienschmidt/httprouter"
+	"github.com/sirupsen/logrus"
 )
 
 const (
