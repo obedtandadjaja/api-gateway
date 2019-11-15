@@ -91,10 +91,10 @@ workflows:
                 - master
           requires:
             - build_and_test
-      # - kubernetes_deploy:
-      #     filters:
-      #       branches:
-      #         only:
-      #           - master
-      #     requires:
-      #       - docker_push
+      - kubernetes_deploy:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - docker_push
