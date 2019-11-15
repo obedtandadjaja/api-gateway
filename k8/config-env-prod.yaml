@@ -1,0 +1,9 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: api-gateway-env
+  namespace: default
+data:
+  ENV: 'prod'
+  APP_HOST: 'localhost'
+  APP_PORT: '3000'

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway{{ENV}}-deployment
+  labels:
+    app: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway{{ENV}}
+          image: gcr.io/obedt-dev/api-gateway:{{IMAGE_TAG}}
+          envFrom:
+            - configMapRef:
+                name: api-gateway{{ENV}}-env
+            - secretRef:
+                name: api-gateway{{ENV}}-env
+          env:
+            - name: APP_PORT
+              value: "3000"
+          readinessProbe:
+            httpGet:
+              path: "/api/health"
+              port: 3000
+            initialDelaySeconds: 2
+            timeoutSeconds: 5
+            periodSeconds: 6
+            successThreshold: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 150m
+              memory: 200Mi
+            limits:
+              cpu: 200m
+              memory: 220Mi
+          ports:
+            - containerPort: 3000
