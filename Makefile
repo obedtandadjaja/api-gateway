@@ -9,3 +9,11 @@ run:
          go clean; \
          go build; \
          ./api-gateway
+
+test:
+	export ENV=$(ENV) \
+         APP_HOST=$(APP_HOST) \
+         APP_PORT=$(APP_PORT) \
+         go clean; \
+         go build; \
+         go test -v -race ./...
