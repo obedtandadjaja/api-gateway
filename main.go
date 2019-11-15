@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/obedtandadjaja/api-gateway/api"
 	"github.com/obedtandadjaja/api-gateway/helper"
 
 	"github.com/Sirupsen/logrus"
@@ -73,6 +74,7 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 
 	router := httprouter.New()
+	router.GET("/api/health", api.Health)
 
 	for _, resolver := range PathsResolver {
 		baseUrlString := fmt.Sprintf("http://%s:%v", AppHost, ServiceToDnsResolver[resolver.ServiceName])
