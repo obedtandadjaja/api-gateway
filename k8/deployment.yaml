@@ -22,16 +22,16 @@ spec:
                 name: api-gateway{{ENV}}-env
           env:
             - name: ENV
-              value: "stage"
+              value: stage
             - name: APP_HOST
-              value: "localhost"
+              value: localhost
             - name: APP_PORT
-              value: "3000"
+              value: 3000
           readinessProbe:
             httpGet:
-              path: "/api/health"
+              path: /api/health
               port: 3000
-            initialDelaySeconds: 2
+            initialDelaySeconds: 5
             timeoutSeconds: 5
             periodSeconds: 6
             successThreshold: 2

@@ -9,6 +9,6 @@ spec:
     app: api-gateway
   type: NodePort
   ports:
-    - name: tcp
-      port: 3000
+    - name: http
+      port: 80
       targetPort: 3000
