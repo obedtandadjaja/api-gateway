@@ -21,6 +21,10 @@ spec:
             - configMapRef:
                 name: api-gateway{{ENV}}-env
           env:
+            - name: ENV
+              value: "stage"
+            - name: APP_HOST
+              value: "localhost"
             - name: APP_PORT
               value: "3000"
           readinessProbe:
