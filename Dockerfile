@@ -1,4 +1,4 @@
-FROM golang:latest as builder
+FROM golang:1.13.4-alpine3.10 as builder
 
 LABEL maintainer="Obed Tandadjaja <obed.tandadjaja@gmail.com>"
 
@@ -17,7 +17,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
-FROM scratch
+FROM alpine:latest
 COPY --from=builder /api-gateway/main .
 ADD https://curl.haxx.se/ca/cacert.pem /etc/ssl/ca-bundle.pem
 
