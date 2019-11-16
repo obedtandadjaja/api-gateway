@@ -7,7 +7,8 @@ metadata:
 spec:
   selector:
     app: api-gateway
+  type: NodePort
   ports:
-    - name: http
-      port: 80
+    - name: tcp
+      port: 3000
       targetPort: 3000
