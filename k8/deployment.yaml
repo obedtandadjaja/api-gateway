@@ -20,8 +20,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: api-gateway{{ENV}}-env
-            - secretRef:
-                name: api-gateway{{ENV}}-env
           env:
             - name: APP_PORT
               value: "3000"
