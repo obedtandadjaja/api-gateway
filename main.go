@@ -19,47 +19,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	// list of services - sorted by name
-	AUTH_SERVICE               = "auth"
-	CARI_RUMAH_BACKEND_SERVICE = "cari-rumah-backend"
-
-	// list of port numbers - sorted by port number
-	CARI_RUMAH_BACKEND_SERVICE_PORT = 4000
-	AUTH_SERVICE_PORT               = 8080
-)
-
 var Environment string
 var AppHost string
 var AppPort string
 var AppUrl string
-
-// sorted alphabetically by name
-var ServiceToDnsResolver = map[string]int{
-	AUTH_SERVICE:               AUTH_SERVICE_PORT,
-	CARI_RUMAH_BACKEND_SERVICE: CARI_RUMAH_BACKEND_SERVICE_PORT,
-}
-
-// sorted by proxy path
-var PathsResolver = []PathResolver{
-	PathResolver{"/auth/credentials", AUTH_SERVICE, "/credentials", "POST", true},
-	PathResolver{"/auth/credentials/initiate_password_reset", AUTH_SERVICE, "/credentials/initiate_password_reset", "POST", true},
-	PathResolver{"/auth/credentials/reset_password", AUTH_SERVICE, "/credentials/reset_password", "POST", true},
-	PathResolver{"/auth/login", AUTH_SERVICE, "/login", "POST", true},
-	PathResolver{"/auth/token", AUTH_SERVICE, "/token", "POST", true},
-	PathResolver{"/auth/verify", AUTH_SERVICE, "/verify", "POST", true},
-	PathResolver{"/cari-rumah-backend/graphql", CARI_RUMAH_BACKEND_SERVICE, "/graphql", "POST", false},
-	PathResolver{"/cari-rumah-backend/google/autocomplete", CARI_RUMAH_BACKEND_SERVICE, "/google/autocomplete", "GET", false},
-	PathResolver{"/cari-rumah-backend/google/placeGeometry", CARI_RUMAH_BACKEND_SERVICE, "/google/placeGeometry", "GET", false},
-}
-
-type PathResolver struct {
-	ProxyPath       string
-	ServiceName     string
-	ActualPath      string
-	Method          string
-	AuthWhitelisted bool
-}
 
 func init() {
 	Environment = os.Getenv("ENV")
@@ -77,7 +40,7 @@ func main() {
 	router.GET("/api/health", api.Health)
 
 	for _, resolver := range PathsResolver {
-		baseUrlString := fmt.Sprintf("http://%s:%v", AppHost, ServiceToDnsResolver[resolver.ServiceName])
+		baseUrlString := fmt.Sprintf("http://%s", AppHost)
 		baseUrl, err := url.Parse(baseUrlString)
 		if err != nil {
 			panic(fmt.Sprintf("Cannot parse url: %s", baseUrlString))
