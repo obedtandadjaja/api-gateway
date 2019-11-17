@@ -38,8 +38,10 @@ func init() {
 	AppUrl = AppHost + ":" + AppPort
 
 	// set up the paths and reverseProxy -> PathResolver
-	for _, path := range Paths {
-		baseUrlString := fmt.Sprintf("http://%s", AppUrl)
+	for i := range Paths {
+		path := Paths[i]
+
+		baseUrlString := fmt.Sprintf("http://%s", path.ServiceName)
 		baseUrl, err := url.Parse(baseUrlString)
 		if err != nil {
 			panic(fmt.Sprintf("Cannot parse url: %s", baseUrlString))
@@ -48,7 +50,7 @@ func init() {
 		reverseProxy := httputil.NewSingleHostReverseProxy(baseUrl)
 		reverseProxy.Director = func(r *http.Request) {
 			r.Header.Add("X-Forwarded-Host", r.Host)
-			r.Header.Add("X-Origin-Host", AppUrl)
+			r.Header.Add("X-Origin-Host", path.ServiceName)
 
 			r.URL.Host = path.ServiceName
 			r.URL.Scheme = baseUrl.Scheme
