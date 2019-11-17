@@ -38,7 +38,7 @@ func init() {
 
 	// set up the paths and reverseProxy -> PathResolver
 	for _, path := range Paths {
-		baseUrlString := fmt.Sprintf("http://%s", AppHost)
+		baseUrlString := fmt.Sprintf("http://%s", AppUrl)
 		baseUrl, err := url.Parse(baseUrlString)
 		if err != nil {
 			panic(fmt.Sprintf("Cannot parse url: %s", baseUrlString))
@@ -82,7 +82,6 @@ func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p 
 		"TrackId": trackId,
 	})
 
-	fmt.Println(resolver.Path)
 	// authentication flow
 	if !resolver.Path.AuthWhitelisted {
 		verified, err := authVerifyToken(r, logger)
@@ -106,7 +105,7 @@ func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p 
 		"RemoteAddr": r.RemoteAddr,
 		"UserAgent":  r.UserAgent(),
 		"Method":     r.Method,
-		"Duration":   time.Now().Sub(start),
+		"Duration":   time.Now().Sub(start).Milliseconds(),
 	}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s",
 		AppUrl, resolver.Path.ProxyPath, AppHost, ServiceToDnsResolver[resolver.Path.ServiceName], resolver.Path.ActualPath))
 }
