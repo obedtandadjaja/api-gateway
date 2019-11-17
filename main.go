@@ -19,27 +19,25 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type PathResolver struct {
+	Path         Path
+	ReverseProxy *httputil.ReverseProxy
+}
+
 var Environment string
 var AppHost string
 var AppPort string
 var AppUrl string
+var PathResolvers = []PathResolver{}
 
 func init() {
 	Environment = os.Getenv("ENV")
 	AppHost = os.Getenv("APP_HOST")
 	AppPort = os.Getenv("APP_PORT")
 	AppUrl = AppHost + ":" + AppPort
-}
 
-func main() {
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.InfoLevel)
-
-	router := httprouter.New()
-	router.GET("/api/health", api.Health)
-
-	for _, resolver := range PathsResolver {
+	// set up the paths and reverseProxy -> PathResolver
+	for _, path := range Paths {
 		baseUrlString := fmt.Sprintf("http://%s", AppHost)
 		baseUrl, err := url.Parse(baseUrlString)
 		if err != nil {
@@ -53,48 +51,64 @@ func main() {
 
 			r.URL.Host = baseUrl.Host
 			r.URL.Scheme = baseUrl.Scheme
-			r.URL.Path = resolver.ActualPath
+			r.URL.Path = path.ActualPath
 		}
 
-		router.Handle(resolver.Method, resolver.ProxyPath, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-			start := time.Now()
+		PathResolvers = append(PathResolvers, PathResolver{path, reverseProxy})
+	}
+}
 
-			trackId, _ := helper.GenerateRandomString(12)
-			logger := logrus.WithFields(logrus.Fields{
-				"TrackId": trackId,
-			})
+func main() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logrus.InfoLevel)
 
-			// authentication flow
-			if !resolver.AuthWhitelisted {
-				verified, err := authVerifyToken(r, logger)
-				if err != nil {
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-					return
-				} else if !verified {
-					http.Error(w, "Unauthorized", http.StatusUnauthorized)
-					return
-				}
-			}
+	router := httprouter.New()
+	router.GET("/api/health", api.Health)
 
-			// setting tracking if not set by client already
-			if r.Header.Get("X-Track-ID") == "" {
-				r.Header.Set("X-Track-ID", trackId)
-			}
-
-			reverseProxy.ServeHTTP(w, r)
-
-			logger.WithFields(logrus.Fields{
-				"RemoteAddr": r.RemoteAddr,
-				"UserAgent":  r.UserAgent(),
-				"Method":     r.Method,
-				"Duration":   time.Now().Sub(start),
-			}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s",
-				AppUrl, resolver.ProxyPath, AppHost, ServiceToDnsResolver[resolver.ServiceName], resolver.ActualPath))
-		})
+	for i := range PathResolvers {
+		router.Handle(PathResolvers[i].Path.Method, PathResolvers[i].Path.ProxyPath, PathResolvers[i].resolve)
 	}
 
 	logrus.Info("App running on port " + AppUrl)
 	logrus.Fatal(http.ListenAndServe(AppUrl, router))
+}
+
+func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	start := time.Now()
+
+	trackId, _ := helper.GenerateRandomString(12)
+	logger := logrus.WithFields(logrus.Fields{
+		"TrackId": trackId,
+	})
+
+	fmt.Println(resolver.Path)
+	// authentication flow
+	if !resolver.Path.AuthWhitelisted {
+		verified, err := authVerifyToken(r, logger)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		} else if !verified {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
+
+	// setting tracking if not set by client already
+	if r.Header.Get("X-Track-ID") == "" {
+		r.Header.Set("X-Track-ID", trackId)
+	}
+
+	resolver.ReverseProxy.ServeHTTP(w, r)
+
+	logger.WithFields(logrus.Fields{
+		"RemoteAddr": r.RemoteAddr,
+		"UserAgent":  r.UserAgent(),
+		"Method":     r.Method,
+		"Duration":   time.Now().Sub(start),
+	}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s",
+		AppUrl, resolver.Path.ProxyPath, AppHost, ServiceToDnsResolver[resolver.Path.ServiceName], resolver.Path.ActualPath))
 }
 
 func authVerifyToken(r *http.Request, logger *logrus.Entry) (bool, error) {
@@ -111,7 +125,7 @@ func authVerifyToken(r *http.Request, logger *logrus.Entry) (bool, error) {
 	}
 
 	res, err := http.Post(
-		fmt.Sprintf("http://%s:%v/verify", AppHost, AUTH_SERVICE_PORT),
+		fmt.Sprintf("http://%s/verify", AUTH_SERVICE),
 		"application/json",
 		bytes.NewBuffer(requestBody),
 	)
