@@ -50,9 +50,9 @@ func init() {
 			r.Header.Add("X-Forwarded-Host", r.Host)
 			r.Header.Add("X-Origin-Host", AppUrl)
 
-			r.URL.Host = baseUrl.Host
+			r.URL.Host = path.ServiceName
 			r.URL.Scheme = baseUrl.Scheme
-			r.URL.Path = path.ServiceName + path.ActualPath
+			r.URL.Path = path.ActualPath
 		}
 		reverseProxy.ModifyResponse = func(r *http.Response) error {
 			if r.StatusCode >= 500 {
