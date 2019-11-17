@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -51,7 +52,20 @@ func init() {
 
 			r.URL.Host = baseUrl.Host
 			r.URL.Scheme = baseUrl.Scheme
-			r.URL.Path = path.ActualPath
+			r.URL.Path = path.ServiceName + path.ActualPath
+		}
+		reverseProxy.ModifyResponse = func(r *http.Response) error {
+			if r.StatusCode >= 500 {
+				logrus.Warn(err)
+
+				buf := bytes.NewBufferString("Internal Server Error")
+				r.Body = ioutil.NopCloser(buf)
+				r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
+				r.Header["Content-Type"] = []string{"text/plain"}
+				r.StatusCode = 500
+			}
+
+			return nil
 		}
 
 		PathResolvers = append(PathResolvers, PathResolver{path, reverseProxy})
