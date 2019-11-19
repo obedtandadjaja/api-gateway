@@ -29,7 +29,7 @@ var ServiceToDnsResolver = map[string]int{
 
 // sorted by proxy path
 var Paths = []Path{
-	Path{"/auth/api/v1/credentials", AUTH_SERVICE, "/credentials", "POST", false},
+	Path{"/auth/api/v1/credentials", AUTH_SERVICE, "/credentials", "POST", true},
 	Path{"/auth/api/v1/credentials/initiate_password_reset", AUTH_SERVICE, "/credentials/initiate_password_reset", "POST", true},
 	Path{"/auth/api/v1/credentials/reset_password", AUTH_SERVICE, "/credentials/reset_password", "POST", true},
 	Path{"/auth/api/v1/login", AUTH_SERVICE, "/login", "POST", true},
