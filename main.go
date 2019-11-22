@@ -15,6 +15,7 @@ import (
 
 	"github.com/obedtandadjaja/api-gateway/api"
 	"github.com/obedtandadjaja/api-gateway/helper"
+	"github.com/rs/cors"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/sirupsen/logrus"
@@ -86,8 +87,14 @@ func main() {
 		router.Handle(PathResolvers[i].Path.Method, PathResolvers[i].Path.ProxyPath, PathResolvers[i].resolve)
 	}
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "PUT", "DELETE", "POST", "OPTIONS"},
+		AllowCredentials: true,
+	})
+
 	logrus.Info("App running on port " + AppUrl)
-	logrus.Fatal(http.ListenAndServe(AppUrl, router))
+	logrus.Fatal(http.ListenAndServe(AppUrl, c.Handler(router)))
 }
 
 func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
