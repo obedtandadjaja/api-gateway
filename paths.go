@@ -35,6 +35,7 @@ var Paths = []Path{
 	Path{"/auth/api/v1/login", AUTH_SERVICE, "/login", "POST", true},
 	Path{"/auth/api/v1/token", AUTH_SERVICE, "/token", "POST", true},
 	Path{"/auth/api/v1/verify", AUTH_SERVICE, "/verify", "POST", true},
+	Path{"/auth/api/v1/verify_session_token", AUTH_SERVICE, "/verify_session_token", "POST", true},
 	Path{"/cari-rumah-backend/graphql", CARI_RUMAH_BACKEND_SERVICE, "/graphql", "POST", false},
 	Path{"/cari-rumah-backend/google/autocomplete", CARI_RUMAH_BACKEND_SERVICE, "/google/autocomplete", "GET", false},
 	Path{"/cari-rumah-backend/google/placeGeometry", CARI_RUMAH_BACKEND_SERVICE, "/google/placeGeometry", "GET", false},
