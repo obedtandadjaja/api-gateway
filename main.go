@@ -49,14 +49,27 @@ func init() {
 		}
 
 		reverseProxy := httputil.NewSingleHostReverseProxy(baseUrl)
+
 		reverseProxy.Director = func(r *http.Request) {
 			r.Header.Add("X-Forwarded-Host", r.Host)
 			r.Header.Add("X-Origin-Host", path.ServiceName)
 
-			r.URL.Host = path.ServiceName
+			r.URL.Host = baseUrl.Host
 			r.URL.Scheme = baseUrl.Scheme
-			r.URL.Path = path.ActualPath
+
+			// this is a special case for project k backend
+			if path.ActualPath == "*" {
+				r.URL.Path = strings.Replace(
+					r.URL.Path,
+					path.ProxyPath[:len(path.ProxyPath)-3],
+					"",
+					1,
+				)
+			} else {
+				r.URL.Path = path.ActualPath
+			}
 		}
+
 		reverseProxy.ModifyResponse = func(r *http.Response) error {
 			if r.StatusCode >= 500 {
 				logrus.Warn(err)
@@ -130,7 +143,7 @@ func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p 
 		"Method":     r.Method,
 		"Duration":   time.Now().Sub(start).Milliseconds(),
 	}).Info(fmt.Sprintf("Successfully redirected %s%s to %s:%v%s",
-		AppUrl, resolver.Path.ProxyPath, AppHost, ServiceToDnsResolver[resolver.Path.ServiceName], resolver.Path.ActualPath))
+		AppUrl, resolver.Path.ProxyPath, AppHost, ServiceToDnsResolver[resolver.Path.ServiceName], r.URL.Host+r.URL.Path))
 }
 
 func authVerifyToken(r *http.Request, logger *logrus.Entry) (bool, error) {
