@@ -119,7 +119,10 @@ func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p 
 	})
 
 	// authentication flow
-	if !resolver.Path.AuthWhitelisted {
+	if !resolver.Path.AuthWhitelisted &&
+		strings.Index(r.URL.Path, "login") == -1 &&
+		strings.Index(r.URL.Path, "signup") == -1 {
+
 		verified, err := authVerifyToken(r, logger)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
