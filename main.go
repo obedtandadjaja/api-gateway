@@ -72,7 +72,11 @@ func init() {
 
 		reverseProxy.ModifyResponse = func(r *http.Response) error {
 			if r.StatusCode >= 500 {
-				logrus.Warn(r.Body)
+				defer r.Body.Close()
+
+				var responseBody map[string]interface{}
+				json.NewDecoder(r.Body).Decode(&responseBody)
+				logrus.Warn(responseBody)
 
 				buf := bytes.NewBufferString("Internal Server Error")
 				r.Body = ioutil.NopCloser(buf)
