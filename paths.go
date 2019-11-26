@@ -40,9 +40,9 @@ var Paths = []Path{
 
 	// Project K Backend is a special case where we want to just pass through API calls
 	// wildcards need to be named but because we don't need it just use 'x' as varName
-	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "GET", true},
-	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "DELETE", true},
-	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "PUT", true},
-	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "POST", true},
-	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "OPTIONS", true},
+	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "GET", false},
+	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "DELETE", false},
+	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "PUT", false},
+	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "POST", false},
+	Path{"/backend/*x", PROJECT_K_BACKEND, "*", "OPTIONS", false},
 }

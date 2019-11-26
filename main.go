@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -69,23 +70,23 @@ func init() {
 			}
 		}
 
-		// reverseProxy.ModifyResponse = func(r *http.Response) error {
-		// 	if r.StatusCode >= 500 {
-		// 		defer r.Body.Close()
+		reverseProxy.ModifyResponse = func(r *http.Response) error {
+			if r.StatusCode >= 500 {
+				defer r.Body.Close()
 
-		// 		var responseBody map[string]interface{}
-		// 		json.NewDecoder(r.Body).Decode(&responseBody)
-		// 		logrus.Warn(responseBody)
+				var responseBody map[string]interface{}
+				json.NewDecoder(r.Body).Decode(&responseBody)
+				logrus.Warn(responseBody)
 
-		// 		buf := bytes.NewBufferString("Internal Server Error")
-		// 		r.Body = ioutil.NopCloser(buf)
-		// 		r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
-		// 		r.Header["Content-Type"] = []string{"text/plain"}
-		// 		r.StatusCode = 500
-		// 	}
+				buf := bytes.NewBufferString("Internal Server Error")
+				r.Body = ioutil.NopCloser(buf)
+				r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
+				r.Header["Content-Type"] = []string{"text/plain"}
+				r.StatusCode = 500
+			}
 
-		// 	return nil
-		// }
+			return nil
+		}
 
 		PathResolvers = append(PathResolvers, PathResolver{path, reverseProxy})
 	}
@@ -124,6 +125,7 @@ func (resolver *PathResolver) resolve(w http.ResponseWriter, r *http.Request, p 
 	// authentication flow
 	if !resolver.Path.AuthWhitelisted &&
 		strings.Index(r.URL.Path, "login") == -1 &&
+		strings.Index(r.URL.Path, "verify") == -1 &&
 		strings.Index(r.URL.Path, "signup") == -1 {
 
 		verified, err := authVerifyToken(r, logger)
